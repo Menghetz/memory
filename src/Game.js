@@ -15,10 +15,14 @@ function shuffle(items) {
   return result;
 }
 
-function createDeck(size) {
+// Builds a deck of size*size cards using `imageCount` different emojis.
+// With fewer images than pairs, some emojis get more than one pair (4 cards),
+// and any two cards with the same emoji count as a match.
+function createDeck(size, imageCount) {
   const pairCount = (size * size) / 2;
-  const picked = shuffle(EMOJIS).slice(0, pairCount);
-  return shuffle([...picked, ...picked]);
+  const picked = shuffle(EMOJIS).slice(0, Math.min(imageCount, pairCount));
+  const pairs = Array.from({ length: pairCount }, (_, i) => picked[i % picked.length]);
+  return shuffle([...pairs, ...pairs]);
 }
 
 function formatTime(totalSeconds) {
@@ -27,15 +31,15 @@ function formatTime(totalSeconds) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-export default function Game({ size, onExit }) {
-  const [deck, setDeck] = useState(() => createDeck(size));
+export default function Game({ size, imageCount, onExit }) {
+  const [deck, setDeck] = useState(() => createDeck(size, imageCount));
   const [flipped, setFlipped] = useState([]); // indexes of the cards currently turned over (max 2)
-  const [matched, setMatched] = useState([]); // emojis whose pair has been found
+  const [matched, setMatched] = useState([]); // indexes of the cards already paired up
   const [moves, setMoves] = useState(0);
   const [seconds, setSeconds] = useState(0);
   const [started, setStarted] = useState(false);
 
-  const won = matched.length === deck.length / 2;
+  const won = matched.length === deck.length;
 
   // The timer starts on the first flip and stops when the board is cleared.
   useEffect(() => {
@@ -49,7 +53,7 @@ export default function Game({ size, onExit }) {
     if (flipped.length < 2) return;
     const [first, second] = flipped;
     if (deck[first] === deck[second]) {
-      setMatched((m) => [...m, deck[first]]);
+      setMatched((m) => [...m, first, second]);
       setFlipped([]);
       return;
     }
@@ -58,7 +62,7 @@ export default function Game({ size, onExit }) {
   }, [flipped, deck]);
 
   function handleCardPress(index) {
-    const alreadyVisible = flipped.includes(index) || matched.includes(deck[index]);
+    const alreadyVisible = flipped.includes(index) || matched.includes(index);
     if (flipped.length === 2 || alreadyVisible) return;
 
     setStarted(true);
@@ -67,7 +71,7 @@ export default function Game({ size, onExit }) {
   }
 
   function restart() {
-    setDeck(createDeck(size));
+    setDeck(createDeck(size, imageCount));
     setFlipped([]);
     setMatched([]);
     setMoves(0);
@@ -93,8 +97,8 @@ export default function Game({ size, onExit }) {
             key={index}
             emoji={emoji}
             size={cardSize}
-            faceUp={flipped.includes(index) || matched.includes(emoji)}
-            matched={matched.includes(emoji)}
+            faceUp={flipped.includes(index) || matched.includes(index)}
+            matched={matched.includes(index)}
             onPress={() => handleCardPress(index)}
           />
         ))}
